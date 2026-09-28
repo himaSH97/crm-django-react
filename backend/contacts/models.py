@@ -3,9 +3,12 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from organizations.managers import TenantManager
+
 
 class Contact(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = TenantManager()
 
     company = models.ForeignKey(
         'companies.Company',

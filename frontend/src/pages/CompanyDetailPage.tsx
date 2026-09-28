@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Building2, LogOut, Plus } from 'lucide-react'
+import { Activity, ArrowLeft, Building2, LogOut, Plus } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ type ContactsState = {
   companyId: string
   status: 'loading' | 'loaded' | 'error'
   contacts: Contact[]
+  count: number
   error: string
 }
 
@@ -39,14 +40,22 @@ export function CompanyDetailPage() {
     companyId: '',
     status: 'loading',
     contacts: [],
+    count: 0,
     error: '',
   })
+  const [contactsPage, setContactsPage] = useState(1)
+  const [contactsPageSize, setContactsPageSize] = useState(20)
+  const [contactsOrdering, setContactsOrdering] = useState('full_name')
   const [contactsReloadKey, setContactsReloadKey] = useState(0)
   const [contactDialogOpen, setContactDialogOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  useEffect(() => {
+    setContactsPage(1)
+  }, [companyId])
 
   useEffect(() => {
     let active = true
@@ -74,10 +83,28 @@ export function CompanyDetailPage() {
 
   useEffect(() => {
     let active = true
-    void getCompanyContacts(companyId)
-      .then((contacts) => {
+    void getCompanyContacts(companyId, {
+      page: contactsPage,
+      page_size: contactsPageSize,
+      ordering: contactsOrdering,
+    })
+      .then((result) => {
         if (active) {
-          setContactsState({ companyId, status: 'loaded', contacts, error: '' })
+          if (
+            contactsPage > 1 &&
+            result.results.length === 0 &&
+            result.count > 0
+          ) {
+            setContactsPage(Math.ceil(result.count / contactsPageSize))
+            return
+          }
+          setContactsState({
+            companyId,
+            status: 'loaded',
+            contacts: result.results,
+            count: result.count,
+            error: '',
+          })
         }
       })
       .catch((contactsError: unknown) => {
@@ -86,6 +113,7 @@ export function CompanyDetailPage() {
             companyId,
             status: 'error',
             contacts: [],
+            count: 0,
             error:
               contactsError instanceof Error
                 ? contactsError.message
@@ -97,7 +125,7 @@ export function CompanyDetailPage() {
     return () => {
       active = false
     }
-  }, [companyId, contactsReloadKey])
+  }, [companyId, contactsPage, contactsPageSize, contactsOrdering, contactsReloadKey])
 
   function retry() {
     setError('')
@@ -106,29 +134,21 @@ export function CompanyDetailPage() {
   }
 
   function retryContacts() {
-    setContactsState({ companyId, status: 'loading', contacts: [], error: '' })
+    setContactsState((current) => ({ ...current, status: 'loading', error: '' }))
     setContactsReloadKey((key) => key + 1)
   }
 
   async function handleSaveContact(contact: NewContact) {
     if (editingContact) {
-      const updatedContact = await updateContact(editingContact.id, contact)
-      setContactsState((current) => ({
-        companyId,
-        status: 'loaded',
-        contacts:
-          current.companyId === companyId && current.status === 'loaded'
-            ? current.contacts.map((item) =>
-                item.id === updatedContact.id ? updatedContact : item,
-              )
-            : [updatedContact],
-        error: '',
-      }))
+      await updateContact(editingContact.id, contact)
+      setContactsState((current) => ({ ...current, status: 'loading' }))
+      setContactsReloadKey((key) => key + 1)
       return
     }
 
     await createContact(companyId, contact)
-    setContactsState({ companyId, status: 'loading', contacts: [], error: '' })
+    setContactsPage(1)
+    setContactsState((current) => ({ ...current, status: 'loading' }))
     setContactsReloadKey((key) => key + 1)
   }
 
@@ -141,8 +161,9 @@ export function CompanyDetailPage() {
       await deleteContact(deletingContact.id)
       setContactsState((current) => ({
         ...current,
-        contacts: current.contacts.filter((item) => item.id !== deletingContact.id),
+        status: 'loading',
       }))
+      setContactsReloadKey((key) => key + 1)
       setDeletingContact(null)
     } catch (deleteRequestError) {
       setDeleteError(
@@ -163,12 +184,23 @@ export function CompanyDetailPage() {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <header className="flex h-16 items-center justify-between border-b border-border px-6 sm:px-10">
-        <Link className="inline-flex items-center gap-3" to="/companies">
-          <span className="flex size-9 items-center justify-center text-emerald-900">
-            <Building2 aria-hidden="true" className="size-5" />
-          </span>
-          <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link className="inline-flex items-center gap-3" to="/companies">
+            <span className="flex size-9 items-center justify-center text-emerald-900">
+              <Building2 aria-hidden="true" className="size-5" />
+            </span>
+            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
+          </Link>
+          {(profile?.role === 'admin' || profile?.role === 'manager') && (
+            <Link
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              to="/activity-logs"
+            >
+              <Activity aria-hidden="true" className="size-4" />
+              Activity
+            </Link>
+          )}
+        </div>
         <Button onClick={signOut} type="button" variant="outline">
           <LogOut aria-hidden="true" />
           Sign out
@@ -253,7 +285,7 @@ export function CompanyDetailPage() {
                   {contactsState.companyId === companyId &&
                     contactsState.status === 'loaded' && (
                       <span className="text-sm text-muted-foreground">
-                        {contactsState.contacts.length}
+                        {contactsState.count}
                       </span>
                     )}
                   <Button
@@ -289,6 +321,16 @@ export function CompanyDetailPage() {
                   canDelete={canDeleteContact}
                   canUpdate={canUpdateContact}
                   contacts={contactsState.contacts}
+                  count={contactsState.count}
+                  onOrderingChange={(ordering) => {
+                    setContactsOrdering(ordering)
+                    setContactsPage(1)
+                  }}
+                  onPageChange={setContactsPage}
+                  onPageSizeChange={(pageSize) => {
+                    setContactsPageSize(pageSize)
+                    setContactsPage(1)
+                  }}
                   onDelete={(contact) => {
                     setDeleteError('')
                     setDeletingContact(contact)
@@ -297,6 +339,9 @@ export function CompanyDetailPage() {
                     setEditingContact(contact)
                     setContactDialogOpen(true)
                   }}
+                  ordering={contactsOrdering}
+                  page={contactsPage}
+                  pageSize={contactsPageSize}
                 />
               )}
             </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, LogOut, Plus, RefreshCw, Search } from 'lucide-react'
+import { Activity, Building2, LogOut, Plus, RefreshCw, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,12 @@ export function CompaniesPage() {
   const canUpdateCompany = profile?.permissions.includes('company:update') ?? false
   const canDeleteCompany = profile?.permissions.includes('company:delete') ?? false
   const [companies, setCompanies] = useState<Company[]>([])
+  const [count, setCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [ordering, setOrdering] = useState('-created_at')
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -32,11 +37,31 @@ export function CompaniesPage() {
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1)
+      setDebouncedQuery(query.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [query])
+
+  useEffect(() => {
     let active = true
 
-    void getCompanies()
+    void getCompanies({
+      page,
+      page_size: pageSize,
+      search: debouncedQuery,
+      ordering,
+    })
       .then((result) => {
-        if (active) setCompanies(result)
+        if (!active) return
+        setCount(result.count)
+        if (page > 1 && result.results.length === 0) {
+          setPage(Math.max(1, Math.ceil(result.count / pageSize)))
+          return
+        }
+        setCompanies(result.results)
       })
       .catch((loadError: unknown) => {
         if (active) {
@@ -54,16 +79,7 @@ export function CompaniesPage() {
     return () => {
       active = false
     }
-  }, [reloadKey])
-
-  const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filteredCompanies = normalizedQuery
-    ? companies.filter((company) =>
-      [company.name, company.industry, company.country].some((value) =>
-        value.toLocaleLowerCase().includes(normalizedQuery),
-      ),
-    )
-    : companies
+  }, [ordering, page, pageSize, debouncedQuery, reloadKey])
 
   function reloadCompanies() {
     setError('')
@@ -83,24 +99,22 @@ export function CompaniesPage() {
 
   async function handleSave(company: CompanyFormValues) {
     if (editingCompany) {
-      const updatedCompany = await updateCompany(editingCompany.id, company)
-      setCompanies((currentCompanies) =>
-        currentCompanies.map((item) =>
-          item.id === updatedCompany.id ? updatedCompany : item,
-        ),
-      )
+      await updateCompany(editingCompany.id, company)
+      setReloadKey((key) => key + 1)
       return
     }
 
     if (!company.logo) throw new Error('Choose a company logo to continue.')
-    const createdCompany = await createCompany({
+    await createCompany({
       name: company.name,
       industry: company.industry,
       country: company.country,
       logo: company.logo,
     })
-    setCompanies((currentCompanies) => [createdCompany, ...currentCompanies])
     setQuery('')
+    setDebouncedQuery('')
+    setPage(1)
+    setReloadKey((key) => key + 1)
   }
 
   async function handleDelete() {
@@ -110,10 +124,8 @@ export function CompaniesPage() {
 
     try {
       await deleteCompany(deletingCompany.id)
-      setCompanies((currentCompanies) =>
-        currentCompanies.filter((item) => item.id !== deletingCompany.id),
-      )
       setDeletingCompany(null)
+      setReloadKey((key) => key + 1)
     } catch (deleteRequestError) {
       setDeleteError(
         deleteRequestError instanceof Error
@@ -128,13 +140,24 @@ export function CompaniesPage() {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <header className="flex h-16 items-center justify-between border-b border-border px-6 sm:px-10">
-        <Link className="inline-flex items-center gap-3" to="/companies">
-          <span className="flex size-9 items-center justify-center rounded-md bg-emerald-950 text-lime-300">
-            <Building2 aria-hidden="true" className="size-5" />
-          </span>
-          <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-        </Link>
-        <Button onClick={signOut} type="button" variant="outline">
+        <div className="flex items-center gap-6">
+          <Link className="inline-flex items-center gap-3" to="/companies">
+            <span className="flex size-9 items-center justify-center rounded-md bg-emerald-950 text-lime-300">
+              <Building2 aria-hidden="true" className="size-5" />
+            </span>
+            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
+          </Link>
+          {(profile?.role === 'admin' || profile?.role === 'manager') && (
+            <Link
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              to="/activity-logs"
+            >
+              <Activity aria-hidden="true" className="size-4" />
+              Activity
+            </Link>
+          )}
+        </div>
+        <Button onClick={signOut} type="button" variant="ghost">
           <LogOut aria-hidden="true" />
           Sign out
         </Button>
@@ -155,12 +178,12 @@ export function CompaniesPage() {
           </Button>
         </div>
 
-        <div className="mt-6 border-t border-border">
-          <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6">
+          <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               {loading
                 ? 'Loading companies…'
-                : `${filteredCompanies.length} ${filteredCompanies.length === 1 ? 'company' : 'companies'}`}
+                : `${count} ${count === 1 ? 'company' : 'companies'}`}
             </p>
             <div className="flex gap-2">
               <div className="relative w-full sm:w-72">
@@ -170,7 +193,7 @@ export function CompaniesPage() {
                 />
                 <Input
                   aria-label="Search companies"
-                  className="pl-9"
+                  className="h-10 border-border/30 pl-9 shadow-none"
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search companies"
                   value={query}
@@ -182,7 +205,7 @@ export function CompaniesPage() {
                 size="icon"
                 title="Refresh companies"
                 type="button"
-                variant="outline"
+                variant="ghost"
               >
                 <RefreshCw aria-hidden="true" />
               </Button>
@@ -201,7 +224,7 @@ export function CompaniesPage() {
             <p className="py-8 text-center text-sm text-muted-foreground" role="status">
               Loading companies…
             </p>
-          ) : companies.length === 0 ? (
+          ) : count === 0 && !query.trim() ? (
             <div className="py-10 text-center">
               <Building2 aria-hidden="true" className="mx-auto size-6 text-muted-foreground" />
               <h2 className="mt-3 text-base font-semibold">No companies yet</h2>
@@ -213,7 +236,7 @@ export function CompaniesPage() {
                 Add company
               </Button>
             </div>
-          ) : filteredCompanies.length === 0 ? (
+          ) : count === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No companies match “{query}”.
             </p>
@@ -221,7 +244,18 @@ export function CompaniesPage() {
             <CompanyTable
               canDelete={canDeleteCompany}
               canUpdate={canUpdateCompany}
-              companies={filteredCompanies}
+              companies={companies}
+              count={count}
+              loading={loading}
+              onOrderingChange={(nextOrdering) => {
+                setPage(1)
+                setOrdering(nextOrdering)
+              }}
+              onPageChange={setPage}
+              onPageSizeChange={(nextPageSize) => {
+                setPage(1)
+                setPageSize(nextPageSize)
+              }}
               onDelete={(company) => {
                 setDeleteError('')
                 setDeletingCompany(company)
@@ -230,6 +264,9 @@ export function CompaniesPage() {
                 setEditingCompany(company)
                 setDialogOpen(true)
               }}
+              ordering={ordering}
+              page={page}
+              pageSize={pageSize}
             />
           )}
         </div>

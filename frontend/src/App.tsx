@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { CompaniesPage } from '@/pages/CompaniesPage'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { ContactDetailPage } from '@/pages/ContactDetailPage'
+import { ActivityLogsPage } from '@/pages/ActivityLogsPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
         <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
+        <Route path="/activity-logs" element={<ActivityLogsPage />} />
         <Route path="*" element={<Navigate to="/companies" replace />} />
       </Route>
     </Routes>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Building2, LogOut, Pencil, Trash2 } from 'lucide-react'
+import { Activity, ArrowLeft, Building2, LogOut, Pencil, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
@@ -89,12 +89,23 @@ export function ContactDetailPage() {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <header className="flex h-16 items-center justify-between border-b border-border px-6 sm:px-10">
-        <Link className="inline-flex items-center gap-3" to="/companies">
-          <span className="flex size-9 items-center justify-center text-emerald-900">
-            <Building2 aria-hidden="true" className="size-5" />
-          </span>
-          <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link className="inline-flex items-center gap-3" to="/companies">
+            <span className="flex size-9 items-center justify-center text-emerald-900">
+              <Building2 aria-hidden="true" className="size-5" />
+            </span>
+            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
+          </Link>
+          {(profile?.role === 'admin' || profile?.role === 'manager') && (
+            <Link
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              to="/activity-logs"
+            >
+              <Activity aria-hidden="true" className="size-4" />
+              Activity
+            </Link>
+          )}
+        </div>
         <Button onClick={signOut} type="button" variant="outline">
           <LogOut aria-hidden="true" />
           Sign out

@@ -2,9 +2,12 @@ import uuid
 
 from django.db import models
 
+from organizations.managers import TenantManager
+
 
 class Company(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = TenantManager()
 
     organization = models.ForeignKey(
         'organizations.Organization',

@@ -23,10 +23,30 @@ export type CompanyFormValues = {
   logo?: File
 }
 
+export type CompanyPage = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Company[]
+}
+
+export type CompanyListQuery = {
+  page: number
+  page_size: number
+  search?: string
+  ordering?: string
+}
+
 const COMPANIES_ENDPOINT = '/api/v1/companies/'
 
-export function getCompanies() {
-  return apiRequest<Company[]>(COMPANIES_ENDPOINT)
+export function getCompanies(query: CompanyListQuery) {
+  const params = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '') params.set(key, String(value))
+  }
+
+  return apiRequest<CompanyPage>(`${COMPANIES_ENDPOINT}?${params.toString()}`)
 }
 
 export function getCompany(companyId: string) {

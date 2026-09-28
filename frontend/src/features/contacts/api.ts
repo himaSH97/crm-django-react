@@ -17,11 +17,26 @@ export type NewContact = {
   role: string
 }
 
+export type ContactPage = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Contact[]
+}
+
 const CONTACTS_ENDPOINT = '/api/v1/contacts/'
 
-export async function getCompanyContacts(companyId: string) {
-  const contacts = await apiRequest<Contact[]>(CONTACTS_ENDPOINT)
-  return contacts.filter((contact) => contact.company === companyId)
+export function getCompanyContacts(
+  companyId: string,
+  query: { page: number; page_size: number; ordering: string },
+) {
+  const params = new URLSearchParams({
+    company: companyId,
+    page: String(query.page),
+    page_size: String(query.page_size),
+    ordering: query.ordering,
+  })
+  return apiRequest<ContactPage>(`${CONTACTS_ENDPOINT}?${params.toString()}`)
 }
 
 export function createContact(companyId: string, contact: NewContact) {

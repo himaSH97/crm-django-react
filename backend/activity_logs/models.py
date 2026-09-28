@@ -3,9 +3,12 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from organizations.managers import TenantManager
+
 
 class ActivityLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    objects = TenantManager()
 
     class Action(models.TextChoices):
         CREATE = 'create', 'CREATE'
@@ -14,6 +17,11 @@ class ActivityLog(models.Model):
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='activity_logs',
+    )
+    organization = models.ForeignKey(
+        'organizations.Organization',
         on_delete=models.CASCADE,
         related_name='activity_logs',
     )
