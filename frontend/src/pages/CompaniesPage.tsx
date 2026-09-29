@@ -15,6 +15,7 @@ import {
 import { CompanyDeleteDialog } from '@/features/companies/components/CompanyDeleteDialog'
 import { CompanyFormDialog } from '@/features/companies/components/CompanyFormDialog'
 import { CompanyTable } from '@/features/companies/components/CompanyTable'
+import { companyFiltersSchema } from '@/lib/validation'
 
 export function CompaniesPage() {
   const { profile, signOut } = useAuth()
@@ -32,6 +33,7 @@ export function CompaniesPage() {
   const [appliedFilters, setAppliedFilters] = useState({ industry: '', country: '' })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filterError, setFilterError] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
   const [deletingCompany, setDeletingCompany] = useState<Company | null>(null)
@@ -94,11 +96,23 @@ export function CompaniesPage() {
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const parsed = companyFiltersSchema.safeParse({
+      search: query,
+      industry: industryFilter,
+      country: countryFilter,
+    })
+    if (!parsed.success) {
+      setFilterError(parsed.error.issues[0]?.message ?? 'Check the company filters.')
+      return
+    }
+
+    setFilterError('')
     setPage(1)
     setAppliedFilters({
-      industry: industryFilter.trim(),
-      country: countryFilter.trim(),
+      industry: parsed.data.industry,
+      country: parsed.data.country,
     })
+    setDebouncedQuery(parsed.data.search)
   }
 
   function clearFilters() {
@@ -106,6 +120,7 @@ export function CompaniesPage() {
     setIndustryFilter('')
     setCountryFilter('')
     setAppliedFilters({ industry: '', country: '' })
+    setFilterError('')
   }
 
   const hasActiveFilters = Boolean(
@@ -214,6 +229,7 @@ export function CompaniesPage() {
               <Input
                 aria-label="Filter by industry"
                 className="h-10 w-full border-border/30 shadow-none sm:w-36"
+                maxLength={100}
                 onChange={(event) => setIndustryFilter(event.target.value)}
                 placeholder="Industry"
                 value={industryFilter}
@@ -221,6 +237,7 @@ export function CompaniesPage() {
               <Input
                 aria-label="Filter by country"
                 className="h-10 w-full border-border/30 shadow-none sm:w-36"
+                maxLength={100}
                 onChange={(event) => setCountryFilter(event.target.value)}
                 placeholder="Country"
                 value={countryFilter}
@@ -242,6 +259,7 @@ export function CompaniesPage() {
                 <Input
                   aria-label="Search companies"
                   className="h-10 border-border/30 pl-9 shadow-none"
+                maxLength={200}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search companies"
                   value={query}
@@ -259,6 +277,11 @@ export function CompaniesPage() {
               </Button>
             </form>
           </div>
+          {filterError && (
+            <p className="pb-3 text-sm text-destructive" role="alert">
+              {filterError}
+            </p>
+          )}
 
           {error ? (
             <div className="flex flex-col items-start gap-3 py-12" role="alert">

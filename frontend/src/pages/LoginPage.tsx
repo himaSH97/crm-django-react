@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { loginFormSchema } from '@/lib/validation'
 
 export function LoginPage() {
   const { signIn } = useAuth()
@@ -25,11 +26,18 @@ export function LoginPage() {
     setBusy(true)
 
     const values = new FormData(event.currentTarget)
-    const username = String(values.get('username') ?? '').trim()
-    const password = String(values.get('password') ?? '')
+    const parsed = loginFormSchema.safeParse({
+      username: values.get('username'),
+      password: values.get('password'),
+    })
+    if (!parsed.success) {
+      setNotice(parsed.error.issues[0]?.message ?? 'Check your sign-in details.')
+      setBusy(false)
+      return
+    }
 
     try {
-      await signIn(username, password)
+      await signIn(parsed.data.username, parsed.data.password)
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : 'Authentication failed. Try again.',

@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Company, CompanyFormValues } from '@/features/companies/api'
+import { companyFormSchema } from '@/lib/validation'
 
 type CompanyFormDialogProps = {
   open: boolean
@@ -49,19 +50,20 @@ export function CompanyFormDialog({
       ? selectedLogo
       : undefined
 
-    if (!company && !logo) {
-      setError('Choose a company logo to continue.')
+    const parsed = companyFormSchema(Boolean(company)).safeParse({
+      name: values.get('name'),
+      industry: values.get('industry'),
+      country: values.get('country'),
+      logo,
+    })
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Check the company details.')
       setBusy(false)
       return
     }
 
     try {
-      await onSave({
-        name: String(values.get('name') ?? '').trim(),
-        industry: String(values.get('industry') ?? '').trim(),
-        country: String(values.get('country') ?? '').trim(),
-        ...(logo ? { logo } : {}),
-      })
+      await onSave(parsed.data)
       handleOpenChange(false, true)
     } catch (submitError) {
       setError(

@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ActivityLogTable, type ActivityLogFilters } from '@/features/activity-logs/components/ActivityLogTable'
+import { activityFiltersSchema } from '@/lib/validation'
 
 const initialFilters: ActivityLogFilters = {
   action: '',
@@ -26,21 +27,27 @@ export function ActivityLogsPage() {
   const canReadActivity = profile?.role === 'admin' || profile?.role === 'manager'
   const [draftFilters, setDraftFilters] = useState(initialFilters)
   const [filters, setFilters] = useState(initialFilters)
+  const [filterError, setFilterError] = useState('')
 
   if (!canReadActivity) return <Navigate replace to="/companies" />
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const parsed = activityFiltersSchema.safeParse(draftFilters)
+    if (!parsed.success) {
+      setFilterError(parsed.error.issues[0]?.message ?? 'Check the activity filters.')
+      return
+    }
+    setFilterError('')
     setFilters({
-      ...draftFilters,
-      username: draftFilters.username.trim(),
-      search: draftFilters.search.trim(),
+      ...parsed.data,
     })
   }
 
   function resetFilters() {
     setDraftFilters(initialFilters)
     setFilters(initialFilters)
+    setFilterError('')
   }
 
   return (
@@ -170,6 +177,11 @@ export function ActivityLogsPage() {
               </Button>
             </div>
           </form>
+          {filterError && (
+            <p className="px-4 py-3 text-sm text-destructive" role="alert">
+              {filterError}
+            </p>
+          )}
 
           <ActivityLogTable filters={filters} key={JSON.stringify(filters)} />
         </div>

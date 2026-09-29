@@ -1,7 +1,10 @@
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import F
+from django.db.models.functions import Lower
 
 from organizations.managers import TenantManager
 
@@ -22,7 +25,16 @@ class Contact(models.Model):
     )
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
-    phone = models.CharField(max_length=32, blank=True)
+    phone = models.CharField(
+        max_length=15,
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{8,15}$',
+                message='Phone must contain 8 to 15 digits.',
+            ),
+        ],
+    )
     role = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)
@@ -30,7 +42,8 @@ class Contact(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['company', 'email'],
+                F('company'),
+                Lower('email'),
                 name='unique_contact_email_per_company',
             ),
         ]

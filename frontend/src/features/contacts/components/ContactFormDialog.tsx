@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Contact, NewContact } from '@/features/contacts/api'
+import { contactFormSchema } from '@/lib/validation'
 
 type ContactFormDialogProps = {
   open: boolean
@@ -46,13 +47,20 @@ export function ContactFormDialog({
     setBusy(true)
 
     const values = new FormData(event.currentTarget)
+    const parsed = contactFormSchema.safeParse({
+      full_name: values.get('full_name'),
+      email: values.get('email'),
+      phone: values.get('phone'),
+      role: values.get('role'),
+    })
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Check the contact details.')
+      setBusy(false)
+      return
+    }
+
     try {
-      await onSave({
-        full_name: String(values.get('full_name') ?? '').trim(),
-        email: String(values.get('email') ?? '').trim(),
-        phone: String(values.get('phone') ?? '').trim(),
-        role: String(values.get('role') ?? '').trim(),
-      })
+      await onSave(parsed.data as NewContact)
       handleOpenChange(false, true)
     } catch (submitError) {
       setError(
