@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Building2, Filter, LogOut, Plus, RefreshCw, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Building2, Filter, Plus, RefreshCw, Search } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +17,7 @@ import { CompanyTable } from '@/features/companies/components/CompanyTable'
 import { companyFiltersSchema } from '@/lib/validation'
 
 export function CompaniesPage() {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const canUpdateCompany = profile?.permissions.includes('company:update') ?? false
   const canDeleteCompany = profile?.permissions.includes('company:delete') ?? false
   const [companies, setCompanies] = useState<Company[]>([])
@@ -178,31 +177,7 @@ export function CompaniesPage() {
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <header className="flex h-16 items-center justify-between border-b border-border px-6 sm:px-10">
-        <div className="flex items-center gap-6">
-          <Link className="inline-flex items-center gap-3" to="/companies">
-            <span className="flex size-9 items-center justify-center rounded-md bg-emerald-950 text-lime-300">
-              <Building2 aria-hidden="true" className="size-5" />
-            </span>
-            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-          </Link>
-          {(profile?.role === 'admin' || profile?.role === 'manager') && (
-            <Link
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              to="/activity-logs"
-            >
-              <Activity aria-hidden="true" className="size-4" />
-              Activity
-            </Link>
-          )}
-        </div>
-        <Button onClick={signOut} type="button" variant="ghost">
-          <LogOut aria-hidden="true" />
-          Sign out
-        </Button>
-      </header>
-
+    <div className="min-h-full bg-background text-foreground">
       <section className="mx-auto max-w-6xl px-6 py-7 sm:px-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -363,6 +338,6 @@ export function CompaniesPage() {
           }}
         />
       )}
-    </main>
+    </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Activity, Building2, LogOut, RotateCcw, Search } from 'lucide-react'
-import { Link, Navigate } from 'react-router-dom'
+import { RotateCcw, Search } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +23,7 @@ const initialFilters: ActivityLogFilters = {
 }
 
 export function ActivityLogsPage() {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const canReadActivity = profile?.role === 'admin' || profile?.role === 'manager'
   const [draftFilters, setDraftFilters] = useState(initialFilters)
   const [filters, setFilters] = useState(initialFilters)
@@ -51,30 +51,7 @@ export function ActivityLogsPage() {
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <header className="flex min-h-16 items-center justify-between gap-4 border-b border-border px-6 sm:px-10">
-        <div className="flex items-center gap-6">
-          <Link className="inline-flex shrink-0 items-center gap-3" to="/companies">
-            <span className="flex size-9 items-center justify-center rounded-md bg-emerald-950 text-lime-300">
-              <Building2 aria-hidden="true" className="size-5" />
-            </span>
-            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-          </Link>
-          <Link
-            aria-current="page"
-            className="inline-flex items-center gap-2 text-sm font-medium text-foreground"
-            to="/activity-logs"
-          >
-            <Activity aria-hidden="true" className="size-4" />
-            Activity
-          </Link>
-        </div>
-        <Button onClick={signOut} type="button" variant="ghost">
-          <LogOut aria-hidden="true" />
-          Sign out
-        </Button>
-      </header>
-
+    <div className="min-h-full bg-background text-foreground">
       <section className="mx-auto max-w-6xl px-6 py-7 sm:px-10">
         <div>
           <p className="text-xs font-semibold text-emerald-800">ORGANIZATION</p>
@@ -186,6 +163,6 @@ export function ActivityLogsPage() {
           <ActivityLogTable filters={filters} key={JSON.stringify(filters)} />
         </div>
       </section>
-    </main>
+    </div>
   )
 }

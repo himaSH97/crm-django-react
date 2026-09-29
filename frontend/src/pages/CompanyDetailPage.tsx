@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowLeft, Building2, LogOut, Plus } from 'lucide-react'
+import { ArrowLeft, Building2, Plus } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 export function CompanyDetailPage() {
   const { companyId = '' } = useParams()
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const canUpdateContact = profile?.permissions.includes('contact:update') ?? false
   const canDeleteContact = profile?.permissions.includes('contact:delete') ?? false
   const [company, setCompany] = useState<Company | null>(null)
@@ -182,31 +182,7 @@ export function CompanyDetailPage() {
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <header className="flex h-16 items-center justify-between border-b border-border px-6 sm:px-10">
-        <div className="flex items-center gap-6">
-          <Link className="inline-flex items-center gap-3" to="/companies">
-            <span className="flex size-9 items-center justify-center text-emerald-900">
-              <Building2 aria-hidden="true" className="size-5" />
-            </span>
-            <span className="text-sm font-bold tracking-[0.12em]">SBLM</span>
-          </Link>
-          {(profile?.role === 'admin' || profile?.role === 'manager') && (
-            <Link
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              to="/activity-logs"
-            >
-              <Activity aria-hidden="true" className="size-4" />
-              Activity
-            </Link>
-          )}
-        </div>
-        <Button onClick={signOut} type="button" variant="outline">
-          <LogOut aria-hidden="true" />
-          Sign out
-        </Button>
-      </header>
-
+    <div className="min-h-full bg-background text-foreground">
       <section className="mx-auto max-w-5xl px-6 py-6 sm:px-10">
         <Link
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -373,6 +349,6 @@ export function CompanyDetailPage() {
           open={deletingContact !== null}
         />
       )}
-    </main>
+    </div>
   )
 }

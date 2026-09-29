@@ -24,4 +24,5 @@ class UserPermissionsView(APIView):
             'username': request.user.username,
             'role': request.user.role,
             'permissions': sorted(ROLE_PERMISSIONS.get(request.user.role, set())),
+            'organization_name': request.user.organization.name,
         })
