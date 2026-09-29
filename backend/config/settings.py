@@ -13,22 +13,117 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 
+def env_bool(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {'1', 'true', 'yes', 'on'}:
+        return True
+    if normalized in {'0', 'false', 'no', 'off'}:
+        return False
+    raise ImproperlyConfigured(f'{name} must be a boolean value.')
+
+
+ENVIRONMENT = os.getenv('DJANGO_ENV', 'development').strip().lower()
+if ENVIRONMENT not in {'development', 'production'}:
+    raise ImproperlyConfigured('DJANGO_ENV must be development or production.')
+
+IS_PRODUCTION = ENVIRONMENT == 'production'
+
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', '').strip()
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', '').strip() or None
+AWS_S3_SESSION_PROFILE = os.getenv('AWS_PROFILE', '').strip() or None
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_EXPIRE = 3600
+AWS_S3_PRESIGNED_POST_EXPIRE = 300
+AWS_S3_FILE_OVERWRITE = False
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+if AWS_STORAGE_BUCKET_NAME and not AWS_S3_REGION_NAME:
+    raise ImproperlyConfigured(
+        'AWS_S3_REGION_NAME is required when AWS_STORAGE_BUCKET_NAME is set.'
+    )
+if IS_PRODUCTION and not AWS_STORAGE_BUCKET_NAME:
+    raise ImproperlyConfigured(
+        'AWS_STORAGE_BUCKET_NAME is required in production.'
+    )
+
+STORAGES = {
+    'default': {
+        'BACKEND': (
+            'storages.backends.s3.S3Storage'
+            if AWS_STORAGE_BUCKET_NAME
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t!$2d!6ts*3)zxx85^dh=2a_a9&lpbzl%7_jrp#w$8)g6o@s+@'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY is required in production.')
+    SECRET_KEY = 'django-insecure-local-development-only'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DJANGO_DEBUG', default=not IS_PRODUCTION)
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured('DJANGO_DEBUG must be false in production.')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if host.strip()
+]
+if IS_PRODUCTION and (not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS):
+    raise ImproperlyConfigured(
+        'Set DJANGO_ALLOWED_HOSTS to explicit production hostnames.'
+    )
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'testserver']
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('DJANGO_CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if IS_PRODUCTION and not CORS_ALLOWED_ORIGINS:
+    raise ImproperlyConfigured(
+        'Set DJANGO_CORS_ALLOWED_ORIGINS to the production frontend origin(s).'
+    )
+CORS_URLS_REGEX = r'^/api/.*$'
+
+SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', IS_PRODUCTION)
+SESSION_COOKIE_SECURE = env_bool('DJANGO_SESSION_COOKIE_SECURE', IS_PRODUCTION)
+CSRF_COOKIE_SECURE = env_bool('DJANGO_CSRF_COOKIE_SECURE', IS_PRODUCTION)
+SECURE_HSTS_SECONDS = int(os.getenv(
+    'DJANGO_SECURE_HSTS_SECONDS',
+    '31536000' if IS_PRODUCTION else '0',
+))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    'DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', False,
+)
+SECURE_HSTS_PRELOAD = env_bool('DJANGO_SECURE_HSTS_PRELOAD', False)
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 
 # Application definition
@@ -41,6 +136,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
+    'storages',
     'health.apps.HealthConfig',
     'authentication.apps.AuthenticationConfig',
     'organizations',
@@ -53,6 +150,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -92,8 +190,10 @@ DATABASES = {
         'PASSWORD': os.getenv("DB_PASSWORD"),
         'HOST': os.getenv("DB_HOST", "localhost"),
         'PORT': os.getenv("DB_PORT", "5432"),
-        'sslmode': os.getenv('DB_SSLMODE', 'require'),
-        'channel_binding': os.getenv('DB_CHANNEL_BINDING', 'require'),
+        'sslmode': os.getenv('DB_SSLMODE', 'require' if IS_PRODUCTION else 'disable'),
+        'channel_binding': os.getenv(
+            'DB_CHANNEL_BINDING', 'require' if IS_PRODUCTION else 'disable',
+        ),
     }
 }
 
@@ -145,4 +245,5 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'EXCEPTION_HANDLER': 'config.exception_handlers.api_exception_handler',
 }

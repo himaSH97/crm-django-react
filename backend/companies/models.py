@@ -1,8 +1,23 @@
 import uuid
+from pathlib import Path
 
 from django.db import models
 
 from organizations.managers import TenantManager
+
+
+def company_logo_upload_to(instance, filename):
+    if not instance.organization_id:
+        raise ValueError('Company logos require an organization.')
+
+    suffix = Path(filename).suffix.lower()
+    if suffix not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        suffix = ''
+
+    return (
+        f'company-logos/{instance.organization_id}/'
+        f'{uuid.uuid4().hex}{suffix}'
+    )
 
 
 class Company(models.Model):
@@ -17,7 +32,7 @@ class Company(models.Model):
     name = models.CharField(max_length=255)
     industry = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
-    logo = models.ImageField(upload_to='company_logos/')
+    logo = models.ImageField(upload_to=company_logo_upload_to)
     created_at = models.DateTimeField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)
 

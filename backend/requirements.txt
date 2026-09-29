@@ -1,6 +1,8 @@
 Django
 djangorestframework
 djangorestframework-simplejwt
+django-cors-headers
+django-storages[s3]
 psycopg2-binary
 dj-database-url
 python-dotenv

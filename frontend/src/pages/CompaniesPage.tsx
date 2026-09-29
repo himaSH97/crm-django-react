@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Building2, LogOut, Plus, RefreshCw, Search } from 'lucide-react'
+import { Activity, Building2, Filter, LogOut, Plus, RefreshCw, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,9 @@ export function CompaniesPage() {
   const [ordering, setOrdering] = useState('-created_at')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [industryFilter, setIndustryFilter] = useState('')
+  const [countryFilter, setCountryFilter] = useState('')
+  const [appliedFilters, setAppliedFilters] = useState({ industry: '', country: '' })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -53,6 +56,8 @@ export function CompaniesPage() {
       page_size: pageSize,
       search: debouncedQuery,
       ordering,
+      industry: appliedFilters.industry,
+      country: appliedFilters.country,
     })
       .then((result) => {
         if (!active) return
@@ -79,13 +84,33 @@ export function CompaniesPage() {
     return () => {
       active = false
     }
-  }, [ordering, page, pageSize, debouncedQuery, reloadKey])
+  }, [ordering, page, pageSize, debouncedQuery, appliedFilters, reloadKey])
 
   function reloadCompanies() {
     setError('')
     setLoading(true)
     setReloadKey((key) => key + 1)
   }
+
+  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setPage(1)
+    setAppliedFilters({
+      industry: industryFilter.trim(),
+      country: countryFilter.trim(),
+    })
+  }
+
+  function clearFilters() {
+    setPage(1)
+    setIndustryFilter('')
+    setCountryFilter('')
+    setAppliedFilters({ industry: '', country: '' })
+  }
+
+  const hasActiveFilters = Boolean(
+    query.trim() || appliedFilters.industry || appliedFilters.country,
+  )
 
   function openAddDialog() {
     setEditingCompany(null)
@@ -185,7 +210,30 @@ export function CompaniesPage() {
                 ? 'Loading companies…'
                 : `${count} ${count === 1 ? 'company' : 'companies'}`}
             </p>
-            <div className="flex gap-2">
+            <form className="flex flex-wrap items-center gap-2" onSubmit={applyFilters}>
+              <Input
+                aria-label="Filter by industry"
+                className="h-10 w-full border-border/30 shadow-none sm:w-36"
+                onChange={(event) => setIndustryFilter(event.target.value)}
+                placeholder="Industry"
+                value={industryFilter}
+              />
+              <Input
+                aria-label="Filter by country"
+                className="h-10 w-full border-border/30 shadow-none sm:w-36"
+                onChange={(event) => setCountryFilter(event.target.value)}
+                placeholder="Country"
+                value={countryFilter}
+              />
+              <Button type="submit" variant="outline">
+                <Filter aria-hidden="true" />
+                Filter
+              </Button>
+              {(appliedFilters.industry || appliedFilters.country) && (
+                <Button onClick={clearFilters} type="button" variant="ghost">
+                  Clear filters
+                </Button>
+              )}
               <div className="relative w-full sm:w-72">
                 <Search
                   aria-hidden="true"
@@ -209,7 +257,7 @@ export function CompaniesPage() {
               >
                 <RefreshCw aria-hidden="true" />
               </Button>
-            </div>
+            </form>
           </div>
 
           {error ? (
@@ -224,7 +272,7 @@ export function CompaniesPage() {
             <p className="py-8 text-center text-sm text-muted-foreground" role="status">
               Loading companies…
             </p>
-          ) : count === 0 && !query.trim() ? (
+          ) : count === 0 && !hasActiveFilters ? (
             <div className="py-10 text-center">
               <Building2 aria-hidden="true" className="mx-auto size-6 text-muted-foreground" />
               <h2 className="mt-3 text-base font-semibold">No companies yet</h2>
@@ -238,7 +286,7 @@ export function CompaniesPage() {
             </div>
           ) : count === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No companies match “{query}”.
+              No companies match the current search and filters.
             </p>
           ) : (
             <CompanyTable

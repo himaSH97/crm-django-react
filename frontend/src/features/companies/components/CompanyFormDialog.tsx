@@ -134,7 +134,7 @@ export function CompanyFormDialog({
           <div className="space-y-2">
             <Label htmlFor="company-logo">Company logo</Label>
             <Input
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               id="company-logo"
               name="logo"
               required={!company}

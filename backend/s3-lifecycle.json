@@ -1,0 +1,14 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-unclaimed-company-logo-uploads",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "company-logos/pending/"
+      },
+      "Expiration": {
+        "Days": 1
+      }
+    }
+  ]
+}

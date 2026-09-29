@@ -7,6 +7,7 @@ import {
 } from 'react'
 import {
   clearSession,
+  SESSION_EXPIRED_EVENT,
   getCurrentPermissions,
   login as requestLogin,
   restoreSession,
@@ -41,6 +42,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => {
       active = false
     }
+  }, [])
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      setProfile(null)
+      setStatus('unauthenticated')
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
   }, [])
 
   async function signIn(username: string, password: string) {
