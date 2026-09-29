@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Building2, Plus } from 'lucide-react'
+import { ArrowLeft, Building2, Plus, Search } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { getCompany, type Company } from '@/features/companies/api'
 import { getCompanyContacts, type Contact } from '@/features/contacts/api'
 import {
@@ -46,6 +47,8 @@ export function CompanyDetailPage() {
   const [contactsPage, setContactsPage] = useState(1)
   const [contactsPageSize, setContactsPageSize] = useState(20)
   const [contactsOrdering, setContactsOrdering] = useState('full_name')
+  const [contactSearch, setContactSearch] = useState('')
+  const [debouncedContactSearch, setDebouncedContactSearch] = useState('')
   const [contactsReloadKey, setContactsReloadKey] = useState(0)
   const [contactDialogOpen, setContactDialogOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
@@ -55,7 +58,18 @@ export function CompanyDetailPage() {
 
   useEffect(() => {
     setContactsPage(1)
+    setContactSearch('')
+    setDebouncedContactSearch('')
   }, [companyId])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setContactsPage(1)
+      setDebouncedContactSearch(contactSearch.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [contactSearch])
 
   useEffect(() => {
     let active = true
@@ -87,6 +101,7 @@ export function CompanyDetailPage() {
       page: contactsPage,
       page_size: contactsPageSize,
       ordering: contactsOrdering,
+      search: debouncedContactSearch,
     })
       .then((result) => {
         if (active) {
@@ -125,7 +140,7 @@ export function CompanyDetailPage() {
     return () => {
       active = false
     }
-  }, [companyId, contactsPage, contactsPageSize, contactsOrdering, contactsReloadKey])
+  }, [companyId, contactsPage, contactsPageSize, contactsOrdering, debouncedContactSearch, contactsReloadKey])
 
   function retry() {
     setError('')
@@ -264,6 +279,16 @@ export function CompanyDetailPage() {
                         {contactsState.count}
                       </span>
                     )}
+                  <div className="relative w-full sm:w-56">
+                    <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      aria-label="Search contacts by name or email"
+                      className="h-10 border-border/30 pl-9 shadow-none"
+                      onChange={(event) => setContactSearch(event.target.value)}
+                      placeholder="Name or email"
+                      value={contactSearch}
+                    />
+                  </div>
                   <Button
                     onClick={() => {
                       setEditingContact(null)
@@ -290,7 +315,9 @@ export function CompanyDetailPage() {
                 </div>
               ) : contactsState.contacts.length === 0 ? (
                 <p className="py-6 text-sm text-muted-foreground">
-                  No contacts are linked to this company.
+                  {debouncedContactSearch
+                    ? 'No contacts match your search.'
+                    : 'No contacts are linked to this company.'}
                 </p>
               ) : (
                 <ContactTable

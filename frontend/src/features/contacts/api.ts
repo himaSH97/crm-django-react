@@ -28,7 +28,7 @@ const CONTACTS_ENDPOINT = '/api/v1/contacts/'
 
 export function getCompanyContacts(
   companyId: string,
-  query: { page: number; page_size: number; ordering: string },
+  query: { page: number; page_size: number; ordering: string; search?: string },
 ) {
   const params = new URLSearchParams({
     company: companyId,
@@ -36,6 +36,7 @@ export function getCompanyContacts(
     page_size: String(query.page_size),
     ordering: query.ordering,
   })
+  if (query.search) params.set('search', query.search)
   return apiRequest<ContactPage>(`${CONTACTS_ENDPOINT}?${params.toString()}`)
 }
 
